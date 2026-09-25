@@ -1,16 +1,15 @@
 from fastapi import FastAPI, Request
 import requests
-import os
 
 app = FastAPI()
 
-WHATSAPP_TOKEN = "EAAPPmGsaoGUBSiilbMTVGYRyFFwNOsxnBMAqF8xYuQk3foN3HTt6YxZA8bmlJfs7ZAFWznxYjHpy9SduLYyPOxtEAyzPgsqve3Rb1S1jI47ZBBOdDRO4TyuIy9eEmtpoZCmVIF769RzPO8ZBktQ6I0lRl4fzaZATZBPfTfF5xLTBpHVqjVdi3208gQ2PZAjZBO8dBP5XN2NVZAHXuVhg4A481EaNTMddgZBaZAErkZC34PjlZAnZCRytILEaTX1fIf5vfPZAZCLGS1lmbKUlyDt3UJ6xg5hEW5qbr"
+WHATSAPP_TOKEN = "EAAPMgSaoGUBsofferPbOP9eZCnOj66bDrYLkZALGe1qHRncV7rXgLQntGuKy91R5yEDDSDQfCbMqGXelHXudesZA1UIFLTqvkoZAZCibQIZBWetV2FfYLKGyGkpatVEP5huzicLvgKZBdyBS"
 PHONE_NUMBER_ID = "1337167026145657"
 VERIFY_TOKEN = "my_secure_verify_token"
 
 @app.get("/")
 def home():
-    return {"status": "SAHAM Bot is running"}
+    return {"status": "SAHAM Bot is running (Smart Free Version)"}
 
 @app.get("/webhook")
 async def verify_webhook(request: Request):
@@ -30,7 +29,6 @@ async def webhook_listener(request: Request):
     print("Webhook Payload:", data)
     
     try:
-        # استخراج رقم المرسل ونص الرسالة من طلب واتساب
         entry = data.get("entry", [{}])[0]
         changes = entry.get("changes", [{}])[0]
         value = changes.get("value", {})
@@ -38,11 +36,20 @@ async def webhook_listener(request: Request):
         
         if messages:
             sender_phone = messages[0]["from"]
-            message_body = messages[0]["text"]["body"]
+            message_body = messages[0]["text"]["body"].strip().lower()
             print(f"Received message from {sender_phone}: {message_body}")
             
-            # إرسال رد ثابت ومباشر إلى واتساب بدون الحاجة لـ OpenAI
-            reply_text = f"أهلاً بك! وصلني ردك: ({message_body})، البوت يعمل بنجاح!"
+            # منطق الردود الذكية المجانية بناءً على الكلمات المفتاحية
+            if "مرحباً" in message_body or "السلام" in message_body or "اهلا" in message_body:
+                reply_text = "أهلاً بك في بوت سهم (SAHAM)! 🚀 كيف يمكنني مساعدتك اليوم؟ (اختر: خدمات، أسعار، تواصل)"
+            elif "خدمات" in message_body:
+                reply_text = "نحن نقدم خدمات تقنية متقدمة، ربط أنظمة، وتطوير مساعدين ذكيين عبر واتساب."
+            elif "أسعار" in message_body or "سعر" in message_body:
+                reply_text = "الخدمة الحالية مجانية تماماً للتجربة والتطوير! 💡"
+            elif "تواصل" in message_body:
+                reply_text = "يمكنك التواصل معنا مباشرة عبر الرد على هذه الرسالة."
+            else:
+                reply_text = f"عذراً، لم أفهم رسالتك: '{message_body}'. يمكنك كتابة (خدمات) أو (أسعار) أو (مرحباً)."
             
             headers = {
                 "Authorization": f"Bearer {WHATSAPP_TOKEN}",
