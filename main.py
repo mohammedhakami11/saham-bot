@@ -1,17 +1,12 @@
 from fastapi import FastAPI, Request
-import openai
 import requests
-import uvicorn
 import os
 
 app = FastAPI()
 
-WHATSAPP_TOKEN = "EAAPPmGsaoGUBSofferPbOP9eZCnOj66bDYLkZALgE1qHRNcV7rXgLQnTguKy9lR5yeDDRSdQFZCBmqGXeLHXudesZA1UIFLTqvkoZAzCIbQiZBVetw2YfEyLCKVyGkpatvEPx5huzicLvgKVZBdyBSgzztZCJ52CgCD0kYvVLfVJyCfkA4YaBjynjU4kpW9qlGAO7LpQiZB5m4nhnDSuV1KZCkg9fEUDNHyhkiIJaMLgu2SBDkL4Ol6SOXZCDa2I4fMwxyP8VHeGdbIU3ay7TrUQEdkvl97ZCgZDZD"
+WHATSAPP_TOKEN = "EAAPMgSaoGUBsofferPbOP9eZCnOj66bDrYLkZALGe1qHRncV7rXgLQntGuKy91R5yEDDSDQfCbMqGXelHXudesZA1UIFLTqvkoZAZCibQIZBWetV2FfYLKGyGkpatVEP5huzicLvgKZBdyBS"
 PHONE_NUMBER_ID = "1337167026145657"
 VERIFY_TOKEN = "my_secure_verify_token"
-OPENAI_API_KEY = "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"
-
-client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 @app.get("/")
 def home():
@@ -26,49 +21,48 @@ async def verify_webhook(request: Request):
     if mode and token:
         if mode == "subscribe" and token == VERIFY_TOKEN:
             return int(challenge) if challenge and challenge.isdigit() else challenge
-    return {"error": "Invalid verification token"}
+        return "Verification failed", 403
+    return "Hello World", 200
 
 @app.post("/webhook")
-async def receive_message(request: Request):
-    print("=== WEBHOOK POST REQUEST HIT ===")
+async def webhook_listener(request: Request):
+    data = await request.json()
+    print("Webhook Payload:", data)
+    
     try:
-        body = await request.json()
-        print("Webhook Payload:", body)
+        # استخراج رقم المرسل ونص الرسالة من طلب واتساب
+        entry = data.get("entry", [{}])[0]
+        changes = entry.get("changes", [{}])[0]
+        value = changes.get("value", {})
+        messages = value.get("messages")
         
-        changes = body.get("entry", [])[0].get("changes", [])[0].get("value", {})
-        if "messages" in changes:
-            phone_number = changes["messages"][0]["from"]
-            message_body = changes["messages"][0]["text"]["body"]
-
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "أنت مساعد ذكي ومفيد عبر واتساب لشركة SAHAM، أجب باختصار وودود."
-                    },
-                    {"role": "user", "content": message_body},
-                ],
-            )
-            ai_response = response.choices[0].message.content
-
-            url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
+        if messages:
+            sender_phone = messages[0]["from"]
+            message_body = messages[0]["text"]["body"]
+            print(f"Received message from {sender_phone}: {message_body}")
+            
+            # إرسال رد ثابت ومباشر إلى واتساب بدون الحاجة لـ OpenAI
+            reply_text = f"أهلاً بك! وصلني ردك: ({message_body})، البوت يعمل بنجاح!"
+            
             headers = {
                 "Authorization": f"Bearer {WHATSAPP_TOKEN}",
-                "Content-Type": "application/json",
+                "Content-Type": "application/json"
             }
             payload = {
                 "messaging_product": "whatsapp",
-                "to": phone_number,
-                "text": {"body": ai_response},
+                "to": sender_phone,
+                "type": "text",
+                "text": {"body": reply_text}
             }
-            res = requests.post(url, json=payload, headers=headers)
-            print("WhatsApp API Response:", res.text)
-
+            
+            response = requests.post(
+                f"https://graph.facebook.com/v17.0/{PHONE_NUMBER_ID}/messages",
+                json=payload,
+                headers=headers
+            )
+            print("WhatsApp API Response:", response.text)
+            
     except Exception as e:
-        print(f"Error occurred: {e}")
-
-    return {"status": "success"}
-
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=10000)
+        print("Error processing webhook:", e)
+        
+    return {"status": "received"}
